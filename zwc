@@ -21,10 +21,19 @@ SUCCESS=0
 FAILURE=1
 
 #
+# Command-line options
+#
+CHARS=		# -c
+LINES=		# -l
+LONGEST=	# -L
+MCHARS=		# -m
+WORDS=		# -w
+
+#
 # Miscellaneous
 #
 OPTS=
-err=$SUCCESS
+TOTALN=0
 
 ############################################################ FUNCTIONS
 
@@ -39,11 +48,11 @@ parse_wc_flags()
 	local OPTIND=1 OPTARG flag
 	while getopts cLlmw flag; do
 		case "$flag" in
-		L) OPTS="$OPTS -L" ;;
-		c) OPTS="$OPTS -c" ;;
-		l) OPTS="$OPTS -l" ;;
-		m) OPTS="$OPTS -m" ;;
-		w) OPTS="$OPTS -w" ;;
+		L) OPTS="$OPTS -L" LONGEST=1 ;;
+		c) OPTS="$OPTS -c" CHARS=1 ;;
+		l) OPTS="$OPTS -l" LINES=1 ;;
+		m) OPTS="$OPTS -m" MCHARS=1 ;;
+		w) OPTS="$OPTS -w" WORDS=1 ;;
 		*) usage # NOTREACHED
 		esac
 	done
@@ -64,6 +73,42 @@ zcat_by_suffix()
 	*.zst|*.zstd) zstdcat "$file" ;;
 	*) return $FAILURE
 	esac
+}
+
+#
+# Accumulate total
+#
+sum_total()
+{
+	local n
+
+	n=0
+	while [ $n -lt $# ]; do
+		n=$(( $n + 1 ))
+		if [ "$LONGEST" ] && [ $n -eq $TOTALN ]; then
+			eval "[ \$TOTAL_$n -ge \$$n ] || TOTAL_$n=\$$n"
+		else
+			eval TOTAL_$n="\$(( \$TOTAL_$n + \$$n ))"
+		fi
+	done
+}
+
+#
+# Show total
+#
+print_total()
+{
+	local n=0
+	local fmt
+
+	set --
+	while [ $n -lt $TOTALN ]; do
+		n=$(( $n + 1 ))
+		eval set -- '"$@"' \$TOTAL_$n
+		fmt="$fmt %7s"
+	done
+
+	printf "$fmt total\n" "$@"
 }
 
 ############################################################ MAIN
@@ -95,23 +140,54 @@ if [ $# -eq 0 ]; then
 fi
 
 #
+# Defaults if no options besides --libxo / -- are given
+#
+[ "$LINES$WORDS$CHARS$MCHARS$LONGEST" ] || LINES=1 WORDS=1 CHARS=1
+
+#
+# Prep totals
+#
+TOTALN=0
+[ ! "$LINES" ] || TOTALN=$(( $TOTALN + 1 ))
+[ ! "$WORDS" ] || TOTALN=$(( $TOTALN + 1 ))
+[ ! "$CHARS$MCHARS" ] || TOTALN=$(( $TOTALN + 1 ))
+[ ! "$LONGEST" ] || TOTALN=$(( $TOTALN + 1 ))
+n=0
+while [ $n -lt $TOTALN ]; do
+	n=$(( $n + 1 ))
+	eval TOTAL_$n=0
+done
+
+#
 # Run wc(1) on files
 # Like wc(1): keep going after file errors; percolate failure at exit
 #
+err=$SUCCESS
 set -o pipefail
 for file in "$@"; do
 	case "$file" in
 	*.Z|*.bz2|*.gz|*.lzma|*.xz|*.zst|*.zstd)
 		if counts=$( zcat_by_suffix "$file" | wc $OPTS ); then
 			echo "$counts $file"
+			sum_total $counts
 		else
 			err=$FAILURE
 		fi
 		;;
 	*)
-		wc $OPTS "$file" || err=$FAILURE
+		if counts=$( wc $OPTS "$file" ); then
+			echo "$counts"
+			sum_total ${counts%"$file"}
+		else
+			err=$FAILURE
+		fi
 	esac
 done
+
+#
+# Produce total line
+#
+[ $# -le 1 ] || print_total
 
 exit $err
 
