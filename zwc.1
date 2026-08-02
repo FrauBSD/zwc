@@ -1,0 +1,140 @@
+.\"
+.\" SPDX-License-Identifier: BSD-2-Clause
+.\"
+.\" Copyright (c) 2026 Devin Teske
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.Dd August 2, 2026
+.Dt ZWC 1
+.Os
+.Sh NAME
+.Nm zwc
+.Nd word, line, character, and byte count for compressed files
+.Sh SYNOPSIS
+.Nm
+.Op Fl -libxo
+.Op Fl c | Fl m
+.Op Fl Llw
+.Op Ar file ...
+.Sh DESCRIPTION
+The
+.Nm
+utility is a thin front-end to
+.Xr wc 1
+that decompresses known compressed inputs before counting.
+It is especially useful for
+.Fx
+man pages and other compressed text, where a direct
+.Xr wc 1
+invocation would report statistics for the compressed byte stream
+rather than the underlying document.
+.Pp
+Each
+.Ar file
+argument is classified by suffix and decompressed to a pipe into
+.Xr wc 1
+as follows:
+.Bl -column ".Pa .zst / .zstd" ".Xr zstdcat 1" -offset indent
+.It Sy Suffix Ta Sy Decompressor
+.It Pa .Z , .gz Ta Xr zcat 1
+.It Pa .bz2 Ta Xr bzcat 1
+.It Pa .lz4 Ta Xr lz4cat 1
+.It Pa .lzma Ta Xr lzcat 1
+.It Pa .xz Ta Xr xzcat 1
+.It Pa .zst , .zstd Ta Xr zstdcat 1
+.El
+.Pp
+All other files are passed to
+.Xr wc 1
+unchanged.
+Options are forwarded to
+.Xr wc 1 .
+.Pp
+The following options are available:
+.Bl -tag -width "--libxo"
+.It Fl -libxo
+Generate output via
+.Xr libxo 3
+in a selection of different human and machine readable formats.
+See
+.Xr xo_options 7
+for details on command line arguments.
+.It Fl L
+Write the length of the longest line.
+.It Fl c
+Write the number of bytes.
+.It Fl l
+Write the number of lines.
+.It Fl m
+Write the number of characters.
+.It Fl w
+Write the number of words.
+.El
+.Pp
+When an option is specified,
+.Nm
+only reports the information requested by that option.
+The default action matches
+.Xr wc 1
+.Pq lines, words, and bytes .
+See
+.Xr wc 1
+for precise definitions of lines, words, bytes, and characters.
+.Sh EXIT STATUS
+.Ex -std
+.Pp
+Like
+.Xr wc 1 ,
+.Nm
+continues processing remaining
+.Ar file
+arguments after an error and reports failure only when exiting.
+.Sh EXAMPLES
+Count lines in a compressed man page:
+.Pp
+.Dl "zwc -l /usr/share/man/man1/wc.1.gz"
+.Pp
+Find the longest line across several compressed manuals:
+.Pp
+.Dl "zwc -L /usr/share/man/man1/*.1.gz"
+.Pp
+Mix compressed and plain inputs:
+.Pp
+.Dl "zwc -w README.md NOTES.gz archive.xz"
+.Sh SEE ALSO
+.Xr bzcat 1 ,
+.Xr gzip 1 ,
+.Xr lz4cat 1 ,
+.Xr lzcat 1 ,
+.Xr wc 1 ,
+.Xr xzcat 1 ,
+.Xr zcat 1 ,
+.Xr zstdcat 1 ,
+.Xr libxo 3 ,
+.Xr xo_options 7
+.Sh HISTORY
+The
+.Nm
+utility appeared in FrauBSD.
+.Sh AUTHORS
+.An Devin Teske Aq Mt dteske@FreeBSD.org

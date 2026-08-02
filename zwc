@@ -1,0 +1,121 @@
+#!/bin/sh
+############################################################ LICENSE
+#
+# Copyright (c) 2026 Devin Teske <dteske@FreeBSD.org>
+#
+# SPDX-License-Identifier: BSD-2-Clause
+#
+############################################################ IDENT(1)
+#
+# $Title: wc(1) for compressed files $
+# $Copyright: 2026 Devin Teske. All rights reserved. $
+#
+############################################################ GLOBALS
+
+pgm="${0##*/}" # Program basename
+
+#
+# Global exit status
+#
+SUCCESS=0
+FAILURE=1
+
+#
+# Miscellaneous
+#
+OPTS=
+err=$SUCCESS
+
+############################################################ FUNCTIONS
+
+usage()
+{
+	printf "usage: %s [-c | -m] [-Llw] [file ...]\n" "$pgm" >&2
+	exit $FAILURE
+}
+
+parse_wc_flags()
+{
+	local OPTIND=1 OPTARG flag
+	while getopts cLlmw flag; do
+		case "$flag" in
+		L) OPTS="$OPTS -L" ;;
+		c) OPTS="$OPTS -c" ;;
+		l) OPTS="$OPTS -l" ;;
+		m) OPTS="$OPTS -m" ;;
+		w) OPTS="$OPTS -w" ;;
+		*) usage # NOTREACHED
+		esac
+	done
+}
+
+#
+# Decompress file to stdout based on suffix
+#
+zcat_by_suffix()
+{
+	local file="$1"
+
+	case "$file" in
+	*.Z|*.gz) zcat "$file" ;;
+	*.bz2) bzcat "$file" ;;
+	*.lz4) lz4cat "$file" ;;
+	*.lzma) lzcat "$file" ;;
+	*.xz) xzcat "$file" ;;
+	*.zst|*.zstd) zstdcat "$file" ;;
+	*) return $FAILURE
+	esac
+}
+
+############################################################ MAIN
+
+#
+# Process command-line options
+#
+n=1
+while [ $n -le $# ]; do
+	eval opt=\"\$$n\"
+	case "$opt" in
+	--libxo) OPTS="$OPTS --libxo" ;;
+	--) n=$(( $n + 1 ))
+		break ;;
+	-) break ;; # stdin
+	-*) parse_wc_flags "$opt" ;;
+	*) break
+	esac
+	n=$(( $n + 1 ))
+done
+shift $(( $n - 1 )) # processed options
+
+#
+# If no files given, run wc(1) on stdin
+#
+if [ $# -eq 0 ]; then
+	wc $OPTS
+	exit
+fi
+
+#
+# Run wc(1) on files
+# Like wc(1): keep going after file errors; percolate failure at exit
+#
+set -o pipefail
+for file in "$@"; do
+	case "$file" in
+	*.Z|*.bz2|*.gz|*.lz4|*.lzma|*.xz|*.zst|*.zstd)
+		if counts=$( zcat_by_suffix "$file" | wc $OPTS ); then
+			echo "$counts $file"
+		else
+			err=$FAILURE
+		fi
+		;;
+	*)
+		wc $OPTS "$file" || err=$FAILURE
+	esac
+done
+
+exit $err
+
+################################################################################
+# END
+################################################################################
