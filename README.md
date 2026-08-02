@@ -40,7 +40,6 @@ Flags are passed through to `wc(1)`. Compression is detected by suffix:
 |--------|--------------|
 | `.Z`, `.gz` | `zcat` |
 | `.bz2` | `bzcat` |
-| `.lz4` | `lz4cat` |
 | `.lzma` | `lzcat` |
 | `.xz` | `xzcat` |
 | `.zst`, `.zstd` | `zstdcat` |

@@ -59,7 +59,6 @@ zcat_by_suffix()
 	case "$file" in
 	*.Z|*.gz) zcat "$file" ;;
 	*.bz2) bzcat "$file" ;;
-	*.lz4) lz4cat "$file" ;;
 	*.lzma) lzcat "$file" ;;
 	*.xz) xzcat "$file" ;;
 	*.zst|*.zstd) zstdcat "$file" ;;
@@ -102,7 +101,7 @@ fi
 set -o pipefail
 for file in "$@"; do
 	case "$file" in
-	*.Z|*.bz2|*.gz|*.lz4|*.lzma|*.xz|*.zst|*.zstd)
+	*.Z|*.bz2|*.gz|*.lzma|*.xz|*.zst|*.zstd)
 		if counts=$( zcat_by_suffix "$file" | wc $OPTS ); then
 			echo "$counts $file"
 		else
